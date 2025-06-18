@@ -3,7 +3,7 @@ using System.Text.Json;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 
-public class NuGetApiService
+public class NuGetApiService : INuGetApiService
 {
   private const string NUGET_SEARCH_URL = "https://azuresearch-usnc.nuget.org/query";
   private readonly HttpClient _httpClient;

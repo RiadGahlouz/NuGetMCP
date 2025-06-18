@@ -6,7 +6,7 @@ public static class PackageTools
 {
   [McpServerTool, Description("Queries the package with the given ID.")]
   public static async Task<NuGetPackageInfo?> QueryPackage(
-    NuGetApiService nuGetService,
+    INuGetApiService nuGetService,
     [Description("The ID of the package to query for")] string packageId,
     [Description("Optional version of the package to query for")] string? version = null)
   {
@@ -16,7 +16,7 @@ public static class PackageTools
 
   [McpServerTool, Description("Searches for packages matching the given query.")]
   public static async Task<NuGetSearchResult?> SearchPackages(
-    NuGetApiService nuGetService,
+    INuGetApiService nuGetService,
     [Description("The search query to use")] string query,
     [Description("The number of results to skip (for pagination)")] int skip = 0,
     [Description("The number of results to take (for pagination)")] int take = 20)
@@ -27,7 +27,7 @@ public static class PackageTools
 
   [McpServerTool, Description("Publishes a package to the NuGet repository.")]
   public static async Task<bool> PublishPackage(
-    NuGetApiService nuGetService,
+    INuGetApiService nuGetService,
     [Description("The path to the package to publish")] string packageFilePath,
     [Description("Optional API key for publishing")] string? apiKey = null)
   {
@@ -37,7 +37,7 @@ public static class PackageTools
 
   [McpServerTool, Description("Unlists a package from the NuGet repository.")]
   public static async Task<bool> UnlistPackage(
-    NuGetApiService nuGetService,
+    INuGetApiService nuGetService,
     [Description("The ID of the package to unlist")] string packageId,
     [Description("The version of the package to unlist")] string version,
     [Description("Optional API key for unlisting")] string? apiKey = null)

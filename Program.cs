@@ -16,7 +16,7 @@ builder.Services
     .WithToolsFromAssembly();
 
 builder.Services.AddHttpClient();
-builder.Services.AddSingleton<NuGetApiService>(sp =>
+builder.Services.AddSingleton<INuGetApiService, NuGetApiService>(sp =>
 {
     var apiKey = Environment.GetEnvironmentVariable("NUGET_API_KEY");
     return new NuGetApiService(
