@@ -7,9 +7,10 @@ public static class PackageTools
   [McpServerTool, Description("Queries the package with the given ID.")]
   public static async Task<NuGetPackageInfo?> QueryPackage(
     NuGetApiService nuGetService,
-    [Description("The ID of the package to query for")] string packageId)
+    [Description("The ID of the package to query for")] string packageId,
+    [Description("Optional version of the package to query for")] string? version = null)
   {
-    var packageInfo = await nuGetService.GetPackageInfoAsync(packageId);
+    var packageInfo = await nuGetService.GetPackageInfoAsync(packageId, version);
     return packageInfo;
   }
 
