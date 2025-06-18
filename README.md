@@ -6,8 +6,6 @@ A Model Context Protocol (MCP) server that provides NuGet package management cap
 
 - **Get Package Information**: Retrieve detailed information about specific NuGet packages
 - **Search Packages**: Search the NuGet repository with query terms
-- **Multiple Package Search**: Get information for multiple packages by their IDs
-- **Package Versions**: List all available versions of a package
 - **Publish Packages**: Upload new packages to NuGet (requires API key)
 - **Manage Packages**: Unlist packages from NuGet (requires API key)
 
