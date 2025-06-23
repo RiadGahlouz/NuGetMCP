@@ -91,9 +91,9 @@ namespace NuGetMCP.Tests
         public async Task UnlistPackage_ReturnsTrue()
         {
             var mockService = new Mock<INuGetApiService>();
-            mockService.Setup(s => s.UnlistPackageAsync("pkg", "1.0.0", null)).ReturnsAsync(true);
+            mockService.Setup(s => s.DeletePackageVersionAsync("pkg", "1.0.0", null)).ReturnsAsync(true);
 
-            var result = await PackageTools.UnlistPackage(mockService.Object, "pkg", "1.0.0");
+            var result = await PackageTools.DeletePackageVersion(mockService.Object, "pkg", "1.0.0");
             Assert.True(result);
         }
 
@@ -101,9 +101,9 @@ namespace NuGetMCP.Tests
         public async Task UnlistPackage_ReturnsFalse_WhenServiceReturnsFalse()
         {
             var mockService = new Mock<INuGetApiService>();
-            mockService.Setup(s => s.UnlistPackageAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>())).ReturnsAsync(false);
+            mockService.Setup(s => s.DeletePackageVersionAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>())).ReturnsAsync(false);
 
-            var result = await PackageTools.UnlistPackage(mockService.Object, "pkg", "1.0.0");
+            var result = await PackageTools.DeletePackageVersion(mockService.Object, "pkg", "1.0.0");
             Assert.False(result);
         }
     }

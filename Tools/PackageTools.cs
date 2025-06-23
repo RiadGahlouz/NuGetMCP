@@ -34,14 +34,26 @@ public static class PackageTools
     return await nuGetService.PublishPackageAsync(packageFilePath, apiKey);
   }
 
-  [McpServerTool, Description("Unlists a package from the NuGet repository.")]
-  public static async Task<bool> UnlistPackage(
+  [McpServerTool, Description("Deletes all version of a package from the NuGet repository.")]
+  public static async Task<BooleanToolResponse> DeletePackage(
     INuGetApiService nuGetService,
     [Description("The ID of the package to unlist")] string packageId,
-    [Description("The version of the package to unlist")] string version,
     [Description("Optional API key for unlisting")] string? apiKey = null)
   {
-    return await nuGetService.UnlistPackageAsync(packageId, version, apiKey);
+    var result = await nuGetService.DeletePackageAsync(packageId, apiKey);
+    return result == null ?
+    BooleanToolResponse.Success() :
+    BooleanToolResponse.Failure($"Failed to delete package {packageId}: {result}");
+  }
+
+  [McpServerTool, Description("Deletes a specific version of a package from the NuGet repository.")]
+  public static async Task<bool> DeletePackageVersion(
+    INuGetApiService nuGetService,
+    [Description("The ID of the package to delete")] string packageId,
+    [Description("The version of the package to delete")] string version,
+    [Description("Optional API key for deleting the package version")] string? apiKey = null)
+  {
+    return await nuGetService.DeletePackageVersionAsync(packageId, version, apiKey);
   }
 
 }
