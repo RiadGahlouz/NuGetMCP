@@ -148,4 +148,72 @@ public class NuGetApiService : INuGetApiService
       return false;
     }
   }
+
+  public async Task<List<NuGetPackageInfo>> GetUserPackagesAsync(string username)
+  {
+    var packages = new List<NuGetPackageInfo>();
+    int skip = 0;
+    const int take = 100; // NuGet API max per request
+    bool hasMoreResults = true;
+
+    while (hasMoreResults)
+    {
+      string url = $"{NUGET_SEARCH_URL}?q=owner:{username}&skip={skip}&take={take}&prerelease=true";
+
+      try
+      {
+        var response = await _httpClient.GetStringAsync(url);
+        var searchResult = JsonSerializer.Deserialize<NuGetSearchResult>(response, new JsonSerializerOptions
+        {
+          PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+        });
+
+        if (searchResult?.Data == null || searchResult.Data.Length == 0)
+        {
+          hasMoreResults = false;
+          break;
+        }
+
+        foreach (var item in searchResult.Data)
+        {
+          // Additional filtering to ensure the package is actually owned by the user
+          if (item.Authors?.Any(a => a.Equals(username, StringComparison.OrdinalIgnoreCase)) == true ||
+              item.Owners?.Any(o => o.Equals(username, StringComparison.OrdinalIgnoreCase)) == true)
+          {
+            packages.Add(new NuGetPackageInfo
+            {
+              Id = item.Id,
+              Title = item.Title,
+              Description = item.Description,
+              Version = item.Version,
+              Authors = item.Authors ?? Array.Empty<string>(),
+              Owners = item.Owners ?? Array.Empty<string>(),
+              Tags = item.Tags,
+              ProjectUrl = item.ProjectUrl,
+              LicenseUrl = item.LicenseUrl,
+              IconUrl = item.IconUrl,
+              Versions = item.Versions,
+              TotalDownloads = item.TotalDownloads,
+              Published = item.Published,
+              Verified = item.Verified
+            });
+          }
+        }
+
+        skip += take;
+
+        // Check if we've retrieved all available results
+        if (searchResult.Data.Length < take)
+        {
+          hasMoreResults = false;
+        }
+      }
+      catch (HttpRequestException ex)
+      {
+        _logger.LogError(ex, "Error retrieving packages for user {Username}", username);
+        hasMoreResults = false; // Stop on error
+      }
+    }
+    return packages;
+  }
 }
