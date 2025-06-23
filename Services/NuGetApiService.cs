@@ -2,6 +2,8 @@ using System.Net.Http.Headers;
 using System.Text.Json;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
+using NuGet.Configuration;
+using NuGet.Protocol.Core.Types;
 
 public class NuGetApiService : INuGetApiService
 {
@@ -73,7 +75,7 @@ public class NuGetApiService : INuGetApiService
     }
   }
 
-  public async Task<bool> PublishPackageAsync(byte[] packageData, string? apiKey = null)
+  public async Task<bool> PublishPackageAsync(string packageFilePath, string? apiKey = null)
   {
     try
     {
@@ -83,21 +85,38 @@ public class NuGetApiService : INuGetApiService
         return false;
       }
 
-      var publishUrl = "https://www.nuget.org/api/v2/package";
-      using var content = new MultipartFormDataContent();
-      using var packageContent = new ByteArrayContent(packageData);
-      packageContent.Headers.ContentType = new MediaTypeHeaderValue("application/octet-stream");
-      content.Add(packageContent, "package", "package.nupkg");
-
-      var request = new HttpRequestMessage(HttpMethod.Put, publishUrl)
+      if (!File.Exists(packageFilePath))
       {
-        Content = content
-      };
+        _logger.LogError("Package file does not exist: {PackageFilePath}", packageFilePath);
+        return false;
+      }
 
-      request.Headers.Add("X-NuGet-ApiKey", apiKey ?? _apiKey);
+      if (Path.GetExtension(packageFilePath).ToLowerInvariant() != ".nupkg")
+      {
+        _logger.LogError("Invalid package file extension: {PackageFilePath}", packageFilePath);
+        return false;
+      }
 
-      var response = await _httpClient.SendAsync(request);
-      return response.IsSuccessStatusCode;
+      // Create source repository
+      var source = new PackageSource("https://api.nuget.org/v3/index.json");
+      var sourceRepository = new SourceRepository(source, Repository.Provider.GetCoreV3());
+
+      var packageUpdateResource = await sourceRepository.GetResourceAsync<PackageUpdateResource>();
+
+      await packageUpdateResource.PushAsync(
+          new[] { packageFilePath },
+          symbolSource: null,
+          timeoutInSecond: 5 * 60,
+          disableBuffering: false,
+          getApiKey: _ => apiKey,
+          getSymbolApiKey: _ => null,
+          noServiceEndpoint: false,
+          skipDuplicate: false,
+          allowInsecureConnections: false,
+          allowSnupkg: false,
+          log: NuGet.Common.NullLogger.Instance);
+      _logger.LogInformation("Package {PackageFilePath} published successfully", packageFilePath);
+      return true;
     }
     catch (Exception ex)
     {

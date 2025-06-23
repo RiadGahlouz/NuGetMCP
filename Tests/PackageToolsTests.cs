@@ -56,7 +56,7 @@ namespace NuGetMCP.Tests
         public async Task PublishPackage_ReturnsTrue()
         {
             var mockService = new Mock<INuGetApiService>();
-            mockService.Setup(s => s.PublishPackageAsync(It.IsAny<byte[]>(), null)).ReturnsAsync(true);
+            mockService.Setup(s => s.PublishPackageAsync(It.IsAny<string>(), It.IsAny<string>())).ReturnsAsync(true);
             var tempFile = Path.GetTempFileName();
             await File.WriteAllBytesAsync(tempFile, new byte[] { 1, 2, 3 });
 
@@ -69,7 +69,7 @@ namespace NuGetMCP.Tests
         public async Task PublishPackage_ReturnsFalse_WhenServiceReturnsFalse()
         {
             var mockService = new Mock<INuGetApiService>();
-            mockService.Setup(s => s.PublishPackageAsync(It.IsAny<byte[]>(), null)).ReturnsAsync(false);
+            mockService.Setup(s => s.PublishPackageAsync(It.IsAny<string>(), It.IsAny<string>())).ReturnsAsync(false);
             var tempFile = Path.GetTempFileName();
             await File.WriteAllBytesAsync(tempFile, new byte[] { 1, 2, 3 });
 
@@ -83,7 +83,8 @@ namespace NuGetMCP.Tests
         {
             var mockService = new Mock<INuGetApiService>();
             var nonExistentFile = Path.Combine(Path.GetTempPath(), Guid.NewGuid() + ".nupkg");
-            await Assert.ThrowsAsync<FileNotFoundException>(() => PackageTools.PublishPackage(mockService.Object, nonExistentFile));
+            var result = await PackageTools.PublishPackage(mockService.Object, nonExistentFile);
+            Assert.False(result);
         }
 
         [Fact]

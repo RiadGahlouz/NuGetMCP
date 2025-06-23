@@ -31,8 +31,7 @@ public static class PackageTools
     [Description("The path to the package to publish")] string packageFilePath,
     [Description("Optional API key for publishing")] string? apiKey = null)
   {
-    var packageData = await File.ReadAllBytesAsync(packageFilePath);
-    return await nuGetService.PublishPackageAsync(packageData, apiKey);
+    return await nuGetService.PublishPackageAsync(packageFilePath, apiKey);
   }
 
   [McpServerTool, Description("Unlists a package from the NuGet repository.")]
