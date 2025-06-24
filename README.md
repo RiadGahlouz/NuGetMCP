@@ -7,6 +7,7 @@ A Model Context Protocol (MCP) server that provides NuGet package management cap
 - **Get Package Information**: Retrieve detailed information about specific NuGet packages
 - **Search Packages**: Search the NuGet repository with query terms
 - **Publish Packages**: Upload new packages to NuGet (requires API key)
+- **Publish Symbol Packages**: Upload symbol packages (.snupkg or .symbols.nupkg) to NuGet symbol server (requires API key)
 - **Delete Packages**: Delete entire packages or specific versions from NuGet (requires API key)
 - **User Package Retrieval**: Get all packages for a specific user
 
@@ -77,6 +78,13 @@ Publish a NuGet package (requires API key).
 - `packageFilePath` (required): Path to the .nupkg file to publish
 - `apiKey` (optional): NuGet API key for publishing
 
+### PublishSymbolPackage
+Publish a symbol package to the NuGet symbol server (requires API key).
+
+**Parameters:**
+- `symbolPackagePath` (required): Path to the symbol package file (.snupkg or .symbols.nupkg) to publish
+- `apiKey` (optional): NuGet API key for publishing symbols
+
 ### DeletePackage
 Delete all versions of a NuGet package (requires API key).
 
@@ -116,12 +124,13 @@ The server can be configured through environment variables:
 - The server uses the official NuGet API endpoints
 - Search functionality uses the Azure Search service provided by NuGet
 - Publishing and deletion operations require a valid NuGet API key
+- Symbol packages (.snupkg or .symbols.nupkg) are published to the NuGet symbol server
 - All operations are performed asynchronously for better performance
 
 ## Future Development
 More toolsets will be added in the near future. Some ideas:
 - [ ] User/Organisation metadata retrieval
-- [ ] Symbol package publishing
+- [x] Symbol package publishing
 - [ ] List files inside a package
 - [ ] Get a specific file inside a package
 - [ ] Get Package README

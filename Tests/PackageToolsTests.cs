@@ -96,6 +96,38 @@ namespace NuGetMCP.Tests
         }
 
         [Fact]
+        public async Task PublishSymbolPackage_ReturnsSuccess()
+        {
+            var mockService = new Mock<INuGetApiService>();
+            mockService.Setup(s => s.PublishSymbolPackageAsync(It.IsAny<string>(), It.IsAny<string>()))
+                .ReturnsAsync(ToolResponse<string>.Success());
+            var tempFile = Path.GetTempFileName();
+            var symbolFile = Path.ChangeExtension(tempFile, ".snupkg");
+            File.Move(tempFile, symbolFile);
+            await File.WriteAllBytesAsync(symbolFile, new byte[] { 1, 2, 3 });
+
+            var result = await PackageTools.PublishSymbolPackage(mockService.Object, symbolFile);
+            Assert.Equal(ToolResponseResult.Success, result.Result);
+            File.Delete(symbolFile);
+        }
+
+        [Fact]
+        public async Task PublishSymbolPackage_ReturnsFailure_WhenServiceReturnsFalse()
+        {
+            var mockService = new Mock<INuGetApiService>();
+            mockService.Setup(s => s.PublishSymbolPackageAsync(It.IsAny<string>(), It.IsAny<string>()))
+                .ReturnsAsync(ToolResponse<string>.Failure("error"));
+            var tempFile = Path.GetTempFileName();
+            var symbolFile = Path.ChangeExtension(tempFile, ".snupkg");
+            File.Move(tempFile, symbolFile);
+            await File.WriteAllBytesAsync(symbolFile, new byte[] { 1, 2, 3 });
+
+            var result = await PackageTools.PublishSymbolPackage(mockService.Object, symbolFile);
+            Assert.Equal(ToolResponseResult.Failure, result.Result);
+            File.Delete(symbolFile);
+        }
+
+        [Fact]
         public async Task UnlistPackage_ReturnsTrue()
         {
             var mockService = new Mock<INuGetApiService>();

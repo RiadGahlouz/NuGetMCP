@@ -32,6 +32,15 @@ public static class PackageTools
     return await nuGetService.PublishPackageAsync(packageFilePath, apiKey);
   }
 
+  [McpServerTool, Description("Publishes a symbol package to the NuGet symbol server.")]
+  public static async Task<ToolResponse<string>> PublishSymbolPackage(
+    INuGetApiService nuGetService,
+    [Description("The path to the symbol package to publish (.snupkg or .symbols.nupkg)")] string symbolPackagePath,
+    [Description("Optional API key for publishing symbols")] string? apiKey = null)
+  {
+    return await nuGetService.PublishSymbolPackageAsync(symbolPackagePath, apiKey);
+  }
+
   [McpServerTool, Description("Deletes all version of a package from the NuGet repository.")]
   public static async Task<ToolResponse<string>> DeletePackage(
     INuGetApiService nuGetService,

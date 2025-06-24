@@ -144,6 +144,60 @@ public class NuGetApiService : INuGetApiService
     }
   }
 
+  public async Task<ToolResponse<string>> PublishSymbolPackageAsync(string symbolPackagePath, string? apiKey = null)
+  {
+    string? result = null;
+    try
+    {
+      if (string.IsNullOrEmpty(apiKey) && string.IsNullOrEmpty(_apiKey))
+      {
+        result = "API key is required for publishing symbol packages";
+        _logger.LogError(result);
+        return ToolResponse<string>.Failure(result);
+      }
+
+      if (!File.Exists(symbolPackagePath))
+      {
+        result = $"Symbol package file does not exist: {symbolPackagePath}";
+        _logger.LogError(result);
+        return ToolResponse<string>.Failure(result);
+      }
+
+      var extension = Path.GetExtension(symbolPackagePath).ToLowerInvariant();
+      if (extension != ".snupkg" && extension != ".symbols.nupkg")
+      {
+        result = $"Invalid symbol package file extension: {extension}. Expected .snupkg or .symbols.nupkg";
+        _logger.LogError(result);
+        return ToolResponse<string>.Failure(result);
+      }
+
+      var packageUpdateResource = await _sourceRepository.GetResourceAsync<PackageUpdateResource>();
+
+      await packageUpdateResource.PushAsync(
+          packagePaths: new[] { symbolPackagePath }, // No regular package
+          symbolSource: null, // NuGet symbol server
+          timeoutInSecond: 5 * 60,
+          disableBuffering: false,
+          getApiKey: _ => apiKey ?? _apiKey,
+          getSymbolApiKey: _ => apiKey ?? _apiKey,
+          noServiceEndpoint: false,
+          skipDuplicate: false,
+          allowInsecureConnections: false,
+          allowSnupkg: true,
+          log: NuGet.Common.NullLogger.Instance);
+
+      result = $"Symbol package {Path.GetFileName(symbolPackagePath)} published successfully";
+      _logger.LogInformation(result);
+      return ToolResponse<string>.Success(result);
+    }
+    catch (Exception ex)
+    {
+      result = $"Error publishing symbol package {Path.GetFileName(symbolPackagePath)}: {ex.Message}";
+      _logger.LogError(ex, result);
+      return ToolResponse<string>.Failure(result);
+    }
+  }
+
   public async Task<ToolResponse<string>> DeletePackageAsync(string packageId, string? apiKey = null)
   {
     string? result = null;
