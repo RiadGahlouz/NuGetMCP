@@ -15,20 +15,22 @@ namespace NuGetMCP.Tests
         {
             var mockService = new Mock<INuGetApiService>();
             var expected = new NuGetPackageInfo { Id = packageId, Version = version ?? string.Empty };
-            mockService.Setup(s => s.GetPackageInfoAsync(packageId, string.IsNullOrEmpty(version) ? null : version)).ReturnsAsync(expected);
+            var expectedResponse = ToolResponse<NuGetPackageInfo>.Success(expected);
+            mockService.Setup(s => s.GetPackageInfoAsync(packageId, string.IsNullOrEmpty(version) ? null : version)).ReturnsAsync(expectedResponse);
 
             var result = await PackageTools.QueryPackage(mockService.Object, packageId, string.IsNullOrEmpty(version) ? null : version);
-            Assert.Equal(expected, result);
+            Assert.Equal(expectedResponse, result);
         }
 
         [Fact]
         public async Task QueryPackage_ReturnsNull_WhenServiceReturnsNull()
         {
             var mockService = new Mock<INuGetApiService>();
-            mockService.Setup(s => s.GetPackageInfoAsync(It.IsAny<string>(), It.IsAny<string>())).ReturnsAsync((NuGetPackageInfo?)null);
+            var failureResponse = ToolResponse<NuGetPackageInfo>.Failure("Package not found");
+            mockService.Setup(s => s.GetPackageInfoAsync(It.IsAny<string>(), It.IsAny<string>())).ReturnsAsync(failureResponse);
 
             var result = await PackageTools.QueryPackage(mockService.Object, "pkg");
-            Assert.Null(result);
+            Assert.Equal(ToolResponseResult.Failure, result.Result);
         }
 
         [Fact]
@@ -36,32 +38,35 @@ namespace NuGetMCP.Tests
         {
             var mockService = new Mock<INuGetApiService>();
             var expected = new NuGetSearchResult { TotalHits = 1 };
-            mockService.Setup(s => s.SearchPackagesAsync("query", 0, 20)).ReturnsAsync(expected);
+            var expectedResponse = ToolResponse<NuGetSearchResult>.Success(expected);
+            mockService.Setup(s => s.SearchPackagesAsync("query", 0, 20)).ReturnsAsync(expectedResponse);
 
             var result = await PackageTools.SearchPackages(mockService.Object, "query");
-            Assert.Equal(expected, result);
+            Assert.Equal(expectedResponse, result);
         }
 
         [Fact]
         public async Task SearchPackages_ReturnsNull_WhenServiceReturnsNull()
         {
             var mockService = new Mock<INuGetApiService>();
-            mockService.Setup(s => s.SearchPackagesAsync(It.IsAny<string>(), It.IsAny<int>(), It.IsAny<int>())).ReturnsAsync((NuGetSearchResult?)null);
+            var failureResponse = ToolResponse<NuGetSearchResult>.Failure("Search failed");
+            mockService.Setup(s => s.SearchPackagesAsync(It.IsAny<string>(), It.IsAny<int>(), It.IsAny<int>())).ReturnsAsync(failureResponse);
 
             var result = await PackageTools.SearchPackages(mockService.Object, "query");
-            Assert.Null(result);
+            Assert.Equal(ToolResponseResult.Failure, result.Result);
         }
 
         [Fact]
         public async Task PublishPackage_ReturnsTrue()
         {
             var mockService = new Mock<INuGetApiService>();
-            mockService.Setup(s => s.PublishPackageAsync(It.IsAny<string>(), It.IsAny<string>())).ReturnsAsync(true);
+            mockService.Setup(s => s.PublishPackageAsync(It.IsAny<string>(), It.IsAny<string>()))
+                .ReturnsAsync(ToolResponse<string>.Success());
             var tempFile = Path.GetTempFileName();
             await File.WriteAllBytesAsync(tempFile, new byte[] { 1, 2, 3 });
 
             var result = await PackageTools.PublishPackage(mockService.Object, tempFile);
-            Assert.True(result);
+            Assert.Equal(ToolResponseResult.Success, result.Result);
             File.Delete(tempFile);
         }
 
@@ -69,42 +74,47 @@ namespace NuGetMCP.Tests
         public async Task PublishPackage_ReturnsFalse_WhenServiceReturnsFalse()
         {
             var mockService = new Mock<INuGetApiService>();
-            mockService.Setup(s => s.PublishPackageAsync(It.IsAny<string>(), It.IsAny<string>())).ReturnsAsync(false);
+            mockService.Setup(s => s.PublishPackageAsync(It.IsAny<string>(), It.IsAny<string>()))
+                .ReturnsAsync(ToolResponse<string>.Failure("error"));
             var tempFile = Path.GetTempFileName();
             await File.WriteAllBytesAsync(tempFile, new byte[] { 1, 2, 3 });
 
             var result = await PackageTools.PublishPackage(mockService.Object, tempFile);
-            Assert.False(result);
+            Assert.Equal(ToolResponseResult.Failure, result.Result);
             File.Delete(tempFile);
         }
 
         [Fact]
-        public async Task PublishPackage_ThrowsFileNotFoundException_WhenFileDoesNotExist()
+        public async Task PublishPackage_ReturnsFailure_WhenFileDoesNotExist()
         {
             var mockService = new Mock<INuGetApiService>();
             var nonExistentFile = Path.Combine(Path.GetTempPath(), Guid.NewGuid() + ".nupkg");
+            mockService.Setup(s => s.PublishPackageAsync(nonExistentFile, It.IsAny<string>()))
+                .ReturnsAsync(ToolResponse<string>.Failure("file not found"));
             var result = await PackageTools.PublishPackage(mockService.Object, nonExistentFile);
-            Assert.False(result);
+            Assert.Equal(ToolResponseResult.Failure, result.Result);
         }
 
         [Fact]
         public async Task UnlistPackage_ReturnsTrue()
         {
             var mockService = new Mock<INuGetApiService>();
-            mockService.Setup(s => s.DeletePackageVersionAsync("pkg", "1.0.0", null)).ReturnsAsync(true);
+            mockService.Setup(s => s.DeletePackageVersionAsync("pkg", "1.0.0", null))
+                .ReturnsAsync(ToolResponse<string>.Success());
 
             var result = await PackageTools.DeletePackageVersion(mockService.Object, "pkg", "1.0.0");
-            Assert.True(result);
+            Assert.Equal(ToolResponseResult.Success, result.Result);
         }
 
         [Fact]
         public async Task UnlistPackage_ReturnsFalse_WhenServiceReturnsFalse()
         {
             var mockService = new Mock<INuGetApiService>();
-            mockService.Setup(s => s.DeletePackageVersionAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>())).ReturnsAsync(false);
+            mockService.Setup(s => s.DeletePackageVersionAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()))
+                .ReturnsAsync(ToolResponse<string>.Failure("error"));
 
             var result = await PackageTools.DeletePackageVersion(mockService.Object, "pkg", "1.0.0");
-            Assert.False(result);
+            Assert.Equal(ToolResponseResult.Failure, result.Result);
         }
     }
 }
