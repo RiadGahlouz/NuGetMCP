@@ -2,6 +2,7 @@ using System.Net.Http.Headers;
 using System.Text.Json;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
+using ModelContextProtocol.Protocol;
 using NuGet.Configuration;
 using NuGet.Protocol.Core.Types;
 using NuGet.Versioning;
@@ -35,7 +36,7 @@ public class NuGetApiService : INuGetApiService
     }
   }
 
-  public async Task<NuGetPackageInfo?> GetPackageInfoAsync(string packageId, string? version = null)
+  public async Task<ToolResponse<NuGetPackageInfo>> GetPackageInfoAsync(string packageId, string? version = null)
   {
     try
     {
@@ -52,16 +53,19 @@ public class NuGetApiService : INuGetApiService
       var package = searchResult?.Data?.FirstOrDefault(p =>
           string.Equals(p.Id, packageId, StringComparison.OrdinalIgnoreCase));
 
-      return package;
+      return package == null
+      ? ToolResponse<NuGetPackageInfo>.Failure($"Package {packageId} not found")
+        : ToolResponse<NuGetPackageInfo>.Success(package);
     }
     catch (Exception ex)
     {
-      _logger.LogError(ex, "Error getting package info for {PackageId}", packageId);
-      return null;
+      var errorMessage = $"Error getting package info for {packageId}: {ex.Message}";
+      _logger.LogError(ex, errorMessage);
+      return ToolResponse<NuGetPackageInfo>.Failure(errorMessage);
     }
   }
 
-  public async Task<NuGetSearchResult?> SearchPackagesAsync(string query, int skip = 0, int take = 20)
+  public async Task<ToolResponse<NuGetSearchResult>> SearchPackagesAsync(string query, int skip = 0, int take = 20)
   {
     try
     {
@@ -75,35 +79,43 @@ public class NuGetApiService : INuGetApiService
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase
       });
 
-      return result;
+      return result != null
+        ? ToolResponse<NuGetSearchResult>.Success(result)
+        : ToolResponse<NuGetSearchResult>.Failure("No results found");
     }
     catch (Exception ex)
     {
-      _logger.LogError(ex, "Error searching packages with query {Query}", query);
-      return null;
+      // Log the error and return a failure response
+      var errorMessage = $"Error searching packages with query '{query}': {ex.Message}";
+      _logger.LogError(ex, errorMessage);
+      return ToolResponse<NuGetSearchResult>.Failure(errorMessage);
     }
   }
 
-  public async Task<bool> PublishPackageAsync(string packageFilePath, string? apiKey = null)
+  public async Task<ToolResponse<string>> PublishPackageAsync(string packageFilePath, string? apiKey = null)
   {
+    string? result = null;
     try
     {
       if (string.IsNullOrEmpty(apiKey) && string.IsNullOrEmpty(_apiKey))
       {
-        _logger.LogError("API key is required for publishing packages");
-        return false;
+        result = "API key is required for publishing packages";
+        _logger.LogError(result);
+        return ToolResponse<string>.Failure(result);
       }
 
       if (!File.Exists(packageFilePath))
       {
-        _logger.LogError("Package file does not exist: {PackageFilePath}", packageFilePath);
-        return false;
+        result = $"Package file does not exist: {packageFilePath}";
+        _logger.LogError(result);
+        return ToolResponse<string>.Failure(result);
       }
 
       if (Path.GetExtension(packageFilePath).ToLowerInvariant() != ".nupkg")
       {
-        _logger.LogError("Invalid package file extension: {PackageFilePath}", packageFilePath);
-        return false;
+        result = $"Invalid package file extension: {Path.GetExtension(packageFilePath)}. Expected .nupkg";
+        _logger.LogError(result);
+        return ToolResponse<string>.Failure(result);
       }
 
       var packageUpdateResource = await _sourceRepository.GetResourceAsync<PackageUpdateResource>();
@@ -120,31 +132,33 @@ public class NuGetApiService : INuGetApiService
           allowInsecureConnections: false,
           allowSnupkg: false,
           log: NuGet.Common.NullLogger.Instance);
-      _logger.LogInformation("Package {PackageFilePath} published successfully", packageFilePath);
-      return true;
+      result = $"Package {Path.GetFileName(packageFilePath)} published successfully";
+      _logger.LogInformation(result);
+      return ToolResponse<string>.Success(result);
     }
     catch (Exception ex)
     {
-      _logger.LogError(ex, "Error publishing package");
-      return false;
+      result = $"Error publishing package {Path.GetFileName(packageFilePath)}: {ex.Message}";
+      _logger.LogError(ex, result);
+      return ToolResponse<string>.Failure(result);
     }
   }
 
-  public async Task<string?> DeletePackageAsync(string packageId, string? apiKey = null)
+  public async Task<ToolResponse<string>> DeletePackageAsync(string packageId, string? apiKey = null)
   {
     string? result = null;
     if (string.IsNullOrEmpty(apiKey) && string.IsNullOrEmpty(_apiKey))
     {
       result = "API key is required for deleting packages";
       _logger.LogError(result);
-      return result;
+      return ToolResponse<string>.Failure(result);
     }
 
     if (string.IsNullOrEmpty(packageId))
     {
       result = "Package ID is required for deletion";
       _logger.LogError(result);
-      return result;
+      return ToolResponse<string>.Failure(result);
     }
 
     // Get package update resource (for deletion)
@@ -153,7 +167,7 @@ public class NuGetApiService : INuGetApiService
     {
       result = "Could not get package update resource from the source. This source may not support package deletion.";
       _logger.LogError(result);
-      return result;
+      return ToolResponse<string>.Failure(result);
     }
 
     // Get package metadata resource
@@ -162,7 +176,7 @@ public class NuGetApiService : INuGetApiService
     {
       result = "Could not get package metadata resource from the source. This source may not support package metadata retrieval.";
       _logger.LogError(result);
-      return result;
+      return ToolResponse<string>.Failure(result);
     }
 
     // Get all versions of the package
@@ -180,7 +194,7 @@ public class NuGetApiService : INuGetApiService
     {
       result = $"No versions found for package {packageId}";
       _logger.LogError(result);
-      return result;
+      return ToolResponse<string>.Failure(result);
     }
 
     var versions = packageMetadata.Select(p => p.Identity.Version).OrderBy(v => v).ToList();
@@ -214,36 +228,44 @@ public class NuGetApiService : INuGetApiService
     // No failed deletions, log success message
     if (deletedCount > 0 && failedCount == 0)
     {
-      _logger.LogInformation($"Deletion complete. Successfully deleted: {deletedCount}");
-      return null; // Return null to indicate success
+      result = $"Deletion complete. Successfully deleted: {deletedCount}";
+      _logger.LogInformation(result);
+      return ToolResponse<string>.Success(result);
     }
-    // If all versions were deleted, return a null string to indicate success
-    return result;
+
+    result = $"Deletion complete. Successfully deleted: {deletedCount}, Failed to delete: {failedCount}\n{result}";
+    _logger.LogWarning(result);
+
+    // Return partial success if some deletions failed
+    return ToolResponse<string>.PartialSuccess(result);
   }
 
-  public async Task<bool> DeletePackageVersionAsync(string packageId, string version, string? apiKey = null)
+  public async Task<ToolResponse<string>> DeletePackageVersionAsync(string packageId, string version, string? apiKey = null)
   {
+    string? result = null;
     if (string.IsNullOrEmpty(apiKey) && string.IsNullOrEmpty(_apiKey))
     {
-      _logger.LogError("API key is required for deleting package versions");
-      return false;
+      result = "API key is required for deleting package versions";
+      _logger.LogError(result);
+      return ToolResponse<string>.Failure(result);
     }
 
     if (string.IsNullOrEmpty(packageId) || string.IsNullOrEmpty(version))
     {
-      _logger.LogError("Package ID and version are required for deletion");
-      return false;
+      result = "Package ID and version are required for deletion";
+      _logger.LogError(result);
+      return ToolResponse<string>.Failure(result);
     }
 
     var packageUpdateResource = await _sourceRepository.GetResourceAsync<PackageUpdateResource>();
     if (packageUpdateResource == null)
     {
-      _logger.LogError("Could not get package update resource from the source. This source may not support package deletion.");
-      return false;
+      result = "Could not get package update resource from the source. This source may not support package deletion.";
+      _logger.LogError(result);
+      return ToolResponse<string>.Failure(result);
     }
 
-    var deletionResult = await _DeletePackageVersion(packageUpdateResource, packageId, new NuGetVersion(version), apiKey);
-    return deletionResult == null; // Return true if deletion was successful (null result means no error)
+    return await _DeletePackageVersion(packageUpdateResource, packageId, new NuGetVersion(version), apiKey);
   }
 
   public async Task<List<NuGetPackageInfo>> GetUserPackagesAsync(string username)
@@ -314,8 +336,9 @@ public class NuGetApiService : INuGetApiService
     return packages;
   }
 
-  private async Task<string?> _DeletePackageVersion(PackageUpdateResource packageUpdateResource, string packageId, NuGetVersion version, string? apiKey = null)
+  private async Task<ToolResponse<string>> _DeletePackageVersion(PackageUpdateResource packageUpdateResource, string packageId, NuGetVersion version, string? apiKey = null)
   {
+    string? result = null;
     try
     {
       _logger.LogInformation($"Deleting {packageId} {version}... ");
@@ -328,14 +351,15 @@ public class NuGetApiService : INuGetApiService
           false,
           NuGet.Common.NullLogger.Instance);
 
-      _logger.LogInformation("✓ Success");
-      return null; // Return null to indicate success
+      result = $"Deleted {packageId} {version}";
+      _logger.LogInformation(result);
+      return ToolResponse<string>.Success(result);
     }
     catch (Exception ex)
     {
-      var result = $"Failed to delete {packageId} {version}: {ex.Message}";
+      result = $"Failed to delete {packageId} {version}: {ex.Message}";
       _logger.LogError(ex, result);
-      return result;
+      return ToolResponse<string>.Failure(result);
     }
   }
 }

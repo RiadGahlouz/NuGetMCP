@@ -5,28 +5,26 @@ using ModelContextProtocol.Server;
 public static class PackageTools
 {
   [McpServerTool, Description("Queries the package with the given ID.")]
-  public static async Task<NuGetPackageInfo?> QueryPackage(
+  public static async Task<ToolResponse<NuGetPackageInfo>> QueryPackage(
     INuGetApiService nuGetService,
     [Description("The ID of the package to query for")] string packageId,
     [Description("Optional version of the package to query for")] string? version = null)
   {
-    var packageInfo = await nuGetService.GetPackageInfoAsync(packageId, version);
-    return packageInfo;
+    return await nuGetService.GetPackageInfoAsync(packageId, version);
   }
 
   [McpServerTool, Description("Searches for packages matching the given query.")]
-  public static async Task<NuGetSearchResult?> SearchPackages(
+  public static async Task<ToolResponse<NuGetSearchResult>> SearchPackages(
     INuGetApiService nuGetService,
     [Description("The search query to use")] string query,
     [Description("The number of results to skip (for pagination)")] int skip = 0,
     [Description("The number of results to take (for pagination)")] int take = 20)
   {
-    var searchResult = await nuGetService.SearchPackagesAsync(query, skip, take);
-    return searchResult;
+    return await nuGetService.SearchPackagesAsync(query, skip, take);
   }
 
   [McpServerTool, Description("Publishes a package to the NuGet repository.")]
-  public static async Task<bool> PublishPackage(
+  public static async Task<ToolResponse<string>> PublishPackage(
     INuGetApiService nuGetService,
     [Description("The path to the package to publish")] string packageFilePath,
     [Description("Optional API key for publishing")] string? apiKey = null)
@@ -35,19 +33,16 @@ public static class PackageTools
   }
 
   [McpServerTool, Description("Deletes all version of a package from the NuGet repository.")]
-  public static async Task<BooleanToolResponse> DeletePackage(
+  public static async Task<ToolResponse<string>> DeletePackage(
     INuGetApiService nuGetService,
     [Description("The ID of the package to unlist")] string packageId,
     [Description("Optional API key for unlisting")] string? apiKey = null)
   {
-    var result = await nuGetService.DeletePackageAsync(packageId, apiKey);
-    return result == null ?
-    BooleanToolResponse.Success() :
-    BooleanToolResponse.Failure($"Failed to delete package {packageId}: {result}");
+    return await nuGetService.DeletePackageAsync(packageId, apiKey);
   }
 
   [McpServerTool, Description("Deletes a specific version of a package from the NuGet repository.")]
-  public static async Task<bool> DeletePackageVersion(
+  public static async Task<ToolResponse<string>> DeletePackageVersion(
     INuGetApiService nuGetService,
     [Description("The ID of the package to delete")] string packageId,
     [Description("The version of the package to delete")] string version,
