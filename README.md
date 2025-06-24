@@ -7,7 +7,8 @@ A Model Context Protocol (MCP) server that provides NuGet package management cap
 - **Get Package Information**: Retrieve detailed information about specific NuGet packages
 - **Search Packages**: Search the NuGet repository with query terms
 - **Publish Packages**: Upload new packages to NuGet (requires API key)
-- **Manage Packages**: Unlist packages from NuGet (requires API key)
+- **Delete Packages**: Delete entire packages or specific versions from NuGet (requires API key)
+- **User Package Retrieval**: Get all packages for a specific user
 
 ## Setup
 ### Usage with VSCode
@@ -74,15 +75,28 @@ Publish a NuGet package (requires API key).
 
 **Parameters:**
 - `packageFilePath` (required): Path to the .nupkg file to publish
-- `apiKey` (required): NuGet API key for publishing
+- `apiKey` (optional): NuGet API key for publishing
 
-### UnlistPackage
-Unlist a specific version of a NuGet package (requires API key).
+### DeletePackage
+Delete all versions of a NuGet package (requires API key).
 
 **Parameters:**
-- `packageId` (required): The package ID to unlist
-- `version` (required): The version to unlist
-- `apiKey` (required): NuGet API key for package management
+- `packageId` (required): The package ID to delete
+- `apiKey` (optional): NuGet API key for package management
+
+### DeletePackageVersion
+Delete a specific version of a NuGet package (requires API key).
+
+**Parameters:**
+- `packageId` (required): The package ID to delete
+- `version` (required): The version to delete
+- `apiKey` (optional): NuGet API key for package management
+
+### GetUserPackages
+Retrieve all packages for a specific user.
+
+**Parameters:**
+- `username` (required): The username to query for packages
 
 ## Configuration
 
@@ -101,14 +115,14 @@ The server can be configured through environment variables:
 
 - The server uses the official NuGet API endpoints
 - Search functionality uses the Azure Search service provided by NuGet
-- Publishing and unlisting operations require a valid NuGet API key
+- Publishing and deletion operations require a valid NuGet API key
 - All operations are performed asynchronously for better performance
 
 ## Future Development
 More toolsets will be added in the near future. Some ideas:
 - [ ] User/Organisation metadata retrieval
-- [ ] Package deletion
 - [ ] Symbol package publishing
 - [ ] List files inside a package
 - [ ] Get a specific file inside a package
 - [ ] Get Package README
+- [ ] Advanced package metadata retrieval
