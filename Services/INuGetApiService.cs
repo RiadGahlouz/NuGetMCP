@@ -8,4 +8,5 @@ public interface INuGetApiService
   Task<ToolResponse<string>> DeletePackageVersionAsync(string packageId, string version, string? apiKey = null);
 
   Task<List<NuGetPackageInfo>> GetUserPackagesAsync(string username);
+  Task<ToolResponse<List<string>>> ListPackageFilesAsync(string packageId, string? version = null);
 }

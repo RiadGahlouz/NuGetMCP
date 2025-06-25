@@ -6,6 +6,7 @@ using ModelContextProtocol.Protocol;
 using NuGet.Configuration;
 using NuGet.Protocol.Core.Types;
 using NuGet.Versioning;
+using System.IO.Compression;
 
 public class NuGetApiService : INuGetApiService
 {
@@ -388,6 +389,113 @@ public class NuGetApiService : INuGetApiService
       }
     }
     return packages;
+  }
+
+  public async Task<ToolResponse<List<string>>> ListPackageFilesAsync(string packageId, string? version = null)
+  {
+    try
+    {
+      if (string.IsNullOrEmpty(packageId))
+      {
+        return ToolResponse<List<string>>.Failure("Package ID is required");
+      }
+
+      // Get package metadata to find the download URL
+      var packageMetadataResource = await _sourceRepository.GetResourceAsync<PackageMetadataResource>();
+      if (packageMetadataResource == null)
+      {
+        return ToolResponse<List<string>>.Failure("Could not get package metadata resource from the source");
+      }
+
+      var packageMetadata = await packageMetadataResource.GetMetadataAsync(
+          packageId,
+          includePrerelease: true,
+          includeUnlisted: false,
+          new SourceCacheContext(),
+          NuGet.Common.NullLogger.Instance,
+          CancellationToken.None);
+
+      if (!packageMetadata.Any())
+      {
+        return ToolResponse<List<string>>.Failure($"Package {packageId} not found");
+      }
+
+      // Find the specific version or use the latest
+      var targetPackage = version != null
+          ? packageMetadata.FirstOrDefault(p => p.Identity.Version.ToString().Equals(version, StringComparison.OrdinalIgnoreCase))
+          : packageMetadata.OrderByDescending(p => p.Identity.Version).First();
+
+      if (targetPackage == null)
+      {
+        return ToolResponse<List<string>>.Failure($"Version {version} of package {packageId} not found");
+      }
+
+      // Get download resource
+      var downloadResource = await _sourceRepository.GetResourceAsync<DownloadResource>();
+      if (downloadResource == null)
+      {
+        return ToolResponse<List<string>>.Failure("Could not get download resource from the source");
+      }
+
+      // Create a temporary directory for extraction
+      var tempDir = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+      Directory.CreateDirectory(tempDir);
+
+      try
+      {
+        // Download the package
+        var downloadResult = await downloadResource.GetDownloadResourceResultAsync(
+            targetPackage.Identity,
+            new PackageDownloadContext(new SourceCacheContext()),
+            tempDir,
+            NuGet.Common.NullLogger.Instance,
+            CancellationToken.None);
+
+        if (downloadResult.Status != DownloadResourceResultStatus.Available || downloadResult.PackageStream == null)
+        {
+          return ToolResponse<List<string>>.Failure($"Failed to download package {packageId} {targetPackage.Identity.Version}");
+        }
+
+        var files = new List<string>();
+
+        // Extract and list files using System.IO.Compression.ZipArchive
+        using (var archive = new System.IO.Compression.ZipArchive(downloadResult.PackageStream, System.IO.Compression.ZipArchiveMode.Read))
+        {
+          foreach (var entry in archive.Entries)
+          {
+            if (!string.IsNullOrEmpty(entry.Name)) // Skip directories
+            {
+              files.Add(entry.FullName);
+            }
+          }
+        }
+
+        files.Sort(); // Sort files alphabetically
+        _logger.LogInformation($"Listed {files.Count} files in package {packageId} {targetPackage.Identity.Version}");
+        return ToolResponse<List<string>>.Success(files);
+      }
+      finally
+      {
+        // Clean up temporary directory
+        if (Directory.Exists(tempDir))
+        {
+          try
+          {
+            Directory.Delete(tempDir, true);
+          }
+          catch (Exception cleanupEx)
+          {
+            _logger.LogWarning(cleanupEx, "Failed to clean up temporary directory {TempDir}", tempDir);
+          }
+        }
+      }
+    }
+    catch (Exception ex)
+    {
+      var errorMessage = $"Error listing files for package {packageId}{(version != null ? $" version {version}" : "")}: {ex.Message}";
+      _logger.LogError(ex, errorMessage);
+      return ToolResponse<List<string>>.Failure(errorMessage);
+    }
   }
 
   private async Task<ToolResponse<string>> _DeletePackageVersion(PackageUpdateResource packageUpdateResource, string packageId, NuGetVersion version, string? apiKey = null)

@@ -148,5 +148,29 @@ namespace NuGetMCP.Tests
             var result = await PackageTools.DeletePackageVersion(mockService.Object, "pkg", "1.0.0");
             Assert.Equal(ToolResponseResult.Failure, result.Result);
         }
+
+        [Fact]
+        public async Task ListPackageFiles_ReturnsFileList()
+        {
+            var mockService = new Mock<INuGetApiService>();
+            var expectedFiles = new List<string> { "lib/net6.0/Package.dll", "Package.nuspec", "readme.txt" };
+            var expectedResponse = ToolResponse<List<string>>.Success(expectedFiles);
+            mockService.Setup(s => s.ListPackageFilesAsync("pkg", "1.0.0")).ReturnsAsync(expectedResponse);
+
+            var result = await PackageTools.ListPackageFiles(mockService.Object, "pkg", "1.0.0");
+            Assert.Equal(ToolResponseResult.Success, result.Result);
+            Assert.Equal(expectedFiles, result.Payload);
+        }
+
+        [Fact]
+        public async Task ListPackageFiles_ReturnsFailure_WhenServiceReturnsFailure()
+        {
+            var mockService = new Mock<INuGetApiService>();
+            var failureResponse = ToolResponse<List<string>>.Failure("Package not found");
+            mockService.Setup(s => s.ListPackageFilesAsync(It.IsAny<string>(), It.IsAny<string>())).ReturnsAsync(failureResponse);
+
+            var result = await PackageTools.ListPackageFiles(mockService.Object, "nonexistent");
+            Assert.Equal(ToolResponseResult.Failure, result.Result);
+        }
     }
 }

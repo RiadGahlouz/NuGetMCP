@@ -60,4 +60,13 @@ public static class PackageTools
     return await nuGetService.DeletePackageVersionAsync(packageId, version, apiKey);
   }
 
+  [McpServerTool, Description("Lists all files contained in a NuGet package.")]
+  public static async Task<ToolResponse<List<string>>> ListPackageFiles(
+    INuGetApiService nuGetService,
+    [Description("The ID of the package to list files for")] string packageId,
+    [Description("Optional specific version to list files for (defaults to latest)")] string? version = null)
+  {
+    return await nuGetService.ListPackageFilesAsync(packageId, version);
+  }
+
 }

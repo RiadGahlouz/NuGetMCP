@@ -10,6 +10,7 @@ A Model Context Protocol (MCP) server that provides NuGet package management cap
 - **Publish Symbol Packages**: Upload symbol packages (.snupkg or .symbols.nupkg) to NuGet symbol server (requires API key)
 - **Delete Packages**: Delete entire packages or specific versions from NuGet (requires API key)
 - **User Package Retrieval**: Get all packages for a specific user
+- **List Package Files**: List all files contained within a NuGet package
 
 ## Setup
 ### Usage with VSCode
@@ -106,6 +107,13 @@ Retrieve all packages for a specific user.
 **Parameters:**
 - `username` (required): The username to query for packages
 
+### ListPackageFiles
+List all files contained within a NuGet package.
+
+**Parameters:**
+- `packageId` (required): The package ID to list files for
+- `version` (optional): Specific version to list files for (defaults to latest)
+
 ## Configuration
 
 The server can be configured through environment variables:
@@ -131,7 +139,7 @@ The server can be configured through environment variables:
 More toolsets will be added in the near future. Some ideas:
 - [ ] User/Organisation metadata retrieval
 - [x] Symbol package publishing
-- [ ] List files inside a package
+- [x] List files inside a package
 - [ ] Get a specific file inside a package
 - [ ] Get Package README
 - [ ] Advanced package metadata retrieval
